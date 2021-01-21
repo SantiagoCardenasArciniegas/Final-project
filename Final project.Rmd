@@ -1,0 +1,97 @@
+---
+title: 'Practical Machine learning: Peer graded assignment'
+author: "Santiago Cárdenas"
+date: "1/8/2021"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3xsbS5bVX
+
+
+
+##Loading packages and data
+
+```{r}
+library(caret)
+library(rpart)
+library(ggplot2)
+library(corrplot)
+library(randomForest)
+library(rattle)
+library(e1071)
+library(tinytex)
+
+
+training_raw <- read.csv("pml-training.csv")[,-1]
+testing <- read.csv("pml-testing.csv")[,-1]
+```
+
+##Creating traning and testing sets
+
+```{r}
+NZV <- nearZeroVar(training_raw)
+training <- training_raw[, -NZV]
+testing <- testing[, -NZV]
+
+NaValues <- sapply(training, function(x) mean(is.na(x))) > 0.9
+training <- training[, NaValues == "FALSE"]
+testing <- testing[, NaValues == "FALSE"]
+
+training <- training[,-c(1:5)]
+testing <- testing[,-c(1:5)]
+
+```
+
+
+## Models
+
+The model chosen for this data analysis are Random Forest and decision trees. I will apply the method to the training sets and then I will apply the better one to the testing set.
+
+#Random Forest
+
+```{r}
+set.seed(123)
+cv3 <- trainControl(method="cv",number=3,allowParallel=TRUE,verboseIter=TRUE)
+Randomforest<-train(classe~., data=training, method="rf",trControl=cv3)
+
+```
+
+#Decision tree
+```{r}
+DecisionTree<- train(classe~.,data=training,method="rpart",trControl=cv3)
+Tree <- rpart(classe ~ ., data=training, method="class")
+fancyRpartPlot(Tree)
+```
+
+
+#Comparison
+
+I will now use tables two compare the behavior of the two models
+
+```{r}
+randomF<-predict(Randomforest,training)
+DecTree<-predict(DecisionTree,training)
+table(randomF,training$classe)
+table(DecTree,training$classe)
+```
+
+##Conclusion
+
+Since the Random Forest method shows a higher level of accuracy compared to the
+decision tree I will use it to do the final prediction.
+
+```{r}
+finalprediction<- predict(Randomforest, testing)
+finalprediction
+```
